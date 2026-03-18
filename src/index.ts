@@ -14,6 +14,7 @@ export type {
   NodePolicy,
   MergeNodeConfig,
   ExecutionLimits,
+  EnrichConfig,
   DGEvent,
   SkipReason,
   DGStatus,
@@ -30,7 +31,7 @@ export type {
   ResolvedVar,
 } from './types/index.js';
 
-export { IDENTIFIER_PATTERN, DEFAULT_LIMITS } from './types/index.js';
+export { IDENTIFIER_PATTERN, DEFAULT_LIMITS, ENRICH_DEFAULTS } from './types/index.js';
 
 // Errors
 export {
@@ -56,6 +57,8 @@ export type { DGContextOptions } from './context/DGContext.js';
 // Executor
 export type { NodeExecutor, NodeResult } from './executor/NodeExecutor.js';
 export { CoreNodeExecutor } from './executor/CoreNodeExecutor.js';
+export { HttpNodeExecutor } from './executor/HttpNodeExecutor.js';
+export { CompositeExecutor } from './executor/CompositeExecutor.js';
 
 // Resolver
 export type { RuleResolver } from './resolver/RuleResolver.js';
