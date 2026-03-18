@@ -23,6 +23,17 @@ export interface DGOrchestratorOptions {
   limits?: ExecutionLimits;
   hooks?: DGLifecycleHooks;
   adapter?: PersistenceAdapter;
+  /**
+   * `'level'` (default) — process all nodes level-by-level with barriers.
+   * `'eager'` — start a node as soon as ALL its direct upstream dependencies
+   *  complete, removing artificial level barriers.  Better throughput when
+   *  individual node durations vary.
+   *
+   * In eager mode, `level.started` / `level.completed` events are still
+   * emitted but their timing reflects when individual nodes finish rather
+   * than strict level boundaries.
+   */
+  scheduling?: 'level' | 'eager';
 }
 
 export class DGOrchestrator {
@@ -112,15 +123,12 @@ export class DGOrchestrator {
     let status: DGStatus = 'completed';
 
     try {
-      // Execute with timeout
-      const execPromise = this.executeLevels(
-        compiled,
-        ctx,
-        meta,
-        maxParallel,
-        graphStart,
-        maxDurationMs,
-      );
+      // Execute with timeout — choose scheduling strategy
+      const scheduling = this.options.scheduling ?? 'level';
+      const execPromise =
+        scheduling === 'eager'
+          ? this.executeEager(compiled, ctx, meta, maxParallel, graphStart, maxDurationMs)
+          : this.executeLevels(compiled, ctx, meta, maxParallel, graphStart, maxDurationMs);
       await withTimeout(
         execPromise,
         maxDurationMs,
@@ -303,5 +311,226 @@ export class DGOrchestrator {
         ts: now(),
       });
     }
+  }
+
+  // ─── Eager (event-driven) scheduling ──────────────────────────────────
+  //
+  // Instead of waiting for every node in level N to finish before level N+1,
+  // a node starts as soon as all its *direct* upstream dependencies are done.
+  // This removes unnecessary blocking when node execution times vary.
+
+  private async executeEager(
+    compiled: CompiledGraph,
+    ctx: DGContext,
+    meta: ExecutionMeta,
+    maxParallel: number,
+    graphStart: number,
+    maxDurationMs: number,
+  ): Promise<void> {
+    // ── 1. Build dependency maps ────────────────────────────────────────
+
+    const upstream = new Map<string, Set<string>>(); // nodeId → upstream node IDs
+    const downstream = new Map<string, Set<string>>(); // nodeId → downstream node IDs
+    const mergeNodeSet = new Set<string>();
+    const nodeToLevel = new Map<string, number>();
+
+    for (const level of compiled.levels) {
+      for (const nodeId of level.nodes) {
+        upstream.set(nodeId, new Set());
+        downstream.set(nodeId, new Set());
+        nodeToLevel.set(nodeId, level.index);
+      }
+      for (const nodeId of level.mergeNodes) {
+        upstream.set(nodeId, new Set());
+        downstream.set(nodeId, new Set());
+        mergeNodeSet.add(nodeId);
+        nodeToLevel.set(nodeId, level.index);
+      }
+    }
+
+    for (const edge of compiled.source.edges) {
+      upstream.get(edge.to.node)?.add(edge.from.node);
+      downstream.get(edge.from.node)?.add(edge.to.node);
+    }
+
+    // ── 2. Remaining-dependency counter per node ────────────────────────
+
+    const pendingDeps = new Map<string, number>();
+    for (const [nodeId, deps] of upstream) {
+      pendingDeps.set(nodeId, deps.size);
+    }
+
+    // ── 3. Per-node completion signal ───────────────────────────────────
+    //
+    // Each node gets a Promise that resolves when the node is done
+    // (success, error-handled, or skipped).  Downstream nodes await
+    // the promises of their upstream deps **without** holding a
+    // semaphore slot, preventing deadlocks.
+
+    const doneSignals = new Map<string, { resolve: () => void; promise: Promise<void> }>();
+    for (const nodeId of upstream.keys()) {
+      let resolve!: () => void;
+      const promise = new Promise<void>((r) => {
+        resolve = r;
+      });
+      doneSignals.set(nodeId, { resolve, promise });
+    }
+
+    // ── 4. Approximate level events ─────────────────────────────────────
+
+    const levelStartTimes = new Map<number, number>();
+    const levelNodeCounts = new Map<number, number>();
+    const levelDoneCounts = new Map<number, number>();
+
+    for (const level of compiled.levels) {
+      const count = level.nodes.length + level.mergeNodes.length;
+      levelNodeCounts.set(level.index, count);
+      levelDoneCounts.set(level.index, 0);
+    }
+
+    const onNodeStart = (nodeId: string): void => {
+      const lvl = nodeToLevel.get(nodeId);
+      if (lvl !== undefined && !levelStartTimes.has(lvl)) {
+        levelStartTimes.set(lvl, Date.now());
+        const levelDef = compiled.levels[lvl];
+        if (levelDef) {
+          ctx.emit({
+            type: 'level.started',
+            level: lvl,
+            nodes: levelDef.nodes,
+            mergeNodes: levelDef.mergeNodes,
+            ts: now(),
+          });
+        }
+      }
+    };
+
+    const onNodeDone = (nodeId: string): void => {
+      const lvl = nodeToLevel.get(nodeId);
+      if (lvl !== undefined) {
+        const count = (levelDoneCounts.get(lvl) ?? 0) + 1;
+        levelDoneCounts.set(lvl, count);
+        if (count >= (levelNodeCounts.get(lvl) ?? 0)) {
+          ctx.emit({
+            type: 'level.completed',
+            level: lvl,
+            durationMs: Date.now() - (levelStartTimes.get(lvl) ?? Date.now()),
+            ts: now(),
+          });
+        }
+      }
+    };
+
+    // ── 5. Semaphore (only held during actual execution) ────────────────
+
+    let activeSlots = 0;
+    const slotWaiters: (() => void)[] = [];
+
+    const acquire = (): Promise<void> => {
+      if (activeSlots < maxParallel) {
+        activeSlots++;
+        return Promise.resolve();
+      }
+      return new Promise<void>((r) => slotWaiters.push(r));
+    };
+
+    const release = (): void => {
+      const next = slotWaiters.shift();
+      if (next) {
+        next(); // transfer slot ownership — don't decrement
+      } else {
+        activeSlots--;
+      }
+    };
+
+    // ── 6. Abort flag ───────────────────────────────────────────────────
+
+    let aborted = false;
+    let abortError: Error | undefined;
+
+    // ── 7. Per-node task ────────────────────────────────────────────────
+
+    const nodeTask = async (nodeId: string): Promise<void> => {
+      // Wait for upstream deps (no semaphore held — prevents deadlocks)
+      const deps = upstream.get(nodeId) ?? new Set<string>();
+      if (deps.size > 0) {
+        await Promise.all([...deps].map((u) => doneSignals.get(u)!.promise));
+      }
+
+      if (aborted) {
+        doneSignals.get(nodeId)?.resolve();
+        onNodeDone(nodeId);
+        return;
+      }
+
+      // Acquire execution slot
+      await acquire();
+
+      try {
+        if (aborted) return;
+
+        // Timeout check
+        if (Date.now() - graphStart > maxDurationMs) {
+          throw new DGTimeoutError(`Graph execution exceeded maxDurationMs (${maxDurationMs}ms)`);
+        }
+
+        const node = compiled.source.nodes[nodeId];
+        if (!node) return;
+
+        // Already handled?
+        if (ctx.isCompleted(nodeId) || ctx.isFailed(nodeId) || ctx.isSkipped(nodeId)) return;
+
+        onNodeStart(nodeId);
+
+        // Edge condition check
+        const { skipped } = resolveActiveNodes([nodeId], compiled, ctx, this.dsls);
+        if (skipped.includes(nodeId)) {
+          ctx.markSkipped(nodeId);
+          ctx.emit({ type: 'node.skipped', nodeId, reason: 'edge-condition-false', ts: now() });
+          return;
+        }
+
+        // Execute
+        if (mergeNodeSet.has(nodeId)) {
+          await runMerge(node, compiled, ctx, this.executor, meta);
+        } else {
+          if (this.options.hooks?.beforeNode) {
+            await this.options.hooks.beforeNode(node, {});
+          }
+          const result = await runNode(node, compiled.wiring, ctx, this.executor, meta);
+          if (this.options.hooks?.afterNode) {
+            await this.options.hooks.afterNode(node, result);
+          }
+        }
+      } catch (err: unknown) {
+        if (err instanceof DGHaltError || err instanceof DGTimeoutError) {
+          aborted = true;
+          abortError = err;
+          return;
+        }
+
+        const node = compiled.source.nodes[nodeId];
+        if (node) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          if (this.options.hooks?.onError) {
+            await this.options.hooks.onError(node, error);
+          }
+          handleNodeError(node, error, compiled, ctx);
+        }
+      } finally {
+        release();
+        doneSignals.get(nodeId)?.resolve();
+        onNodeDone(nodeId);
+      }
+    };
+
+    // ── 8. Launch all node tasks in parallel ────────────────────────────
+    //
+    // Every task immediately suspends on its upstream dep promises,
+    // so only root nodes (zero deps) proceed to semaphore acquisition.
+
+    await Promise.all([...upstream.keys()].map((nodeId) => nodeTask(nodeId)));
+
+    if (abortError) throw abortError;
   }
 }
