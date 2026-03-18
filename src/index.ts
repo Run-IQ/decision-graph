@@ -15,6 +15,7 @@ export type {
   MergeNodeConfig,
   ExecutionLimits,
   EnrichConfig,
+  SubGraphConfig,
   DGEvent,
   SkipReason,
   DGStatus,
@@ -58,6 +59,8 @@ export type { DGContextOptions } from './context/DGContext.js';
 export type { NodeExecutor, NodeResult } from './executor/NodeExecutor.js';
 export { CoreNodeExecutor } from './executor/CoreNodeExecutor.js';
 export { HttpNodeExecutor } from './executor/HttpNodeExecutor.js';
+export { SubGraphExecutor } from './executor/SubGraphExecutor.js';
+export type { SubGraphRunner } from './executor/SubGraphExecutor.js';
 export { CompositeExecutor } from './executor/CompositeExecutor.js';
 
 // Resolver
@@ -93,6 +96,15 @@ export type {
   DGVisualizationNode,
   DGVisualizationEdge,
 } from './inspector/exporters/visualization.js';
+
+// Pipeline
+export { DGPipeline } from './pipeline/DGPipeline.js';
+export type { PipelineResult, DGPipelineOptions } from './pipeline/DGPipeline.js';
+export type {
+  OutputLayerHandler,
+  OutputLayerContext,
+  OutputHandlerResult,
+} from './pipeline/OutputLayer.js';
 
 // Version
 export { VERSION } from './version.js';
