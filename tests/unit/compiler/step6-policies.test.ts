@@ -199,4 +199,61 @@ describe('step6-policies', () => {
     };
     expect(() => validatePolicies(g, true)).not.toThrow();
   });
+
+  it('warns when enrich node has storeRaw: true', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1',
+      nodes: {
+        e: {
+          id: 'e',
+          type: 'enrich',
+          ports: { in: [], out: [{ name: 'v', required: false }] },
+          policy: { onError: 'fail', onFailPropagation: 'halt', storeRaw: true },
+          meta: {
+            enrichConfig: {
+              endpoint: 'https://api.example.com',
+              timeoutMs: 3000,
+              onFailure: 'fail',
+              inputMapping: {},
+              outputMapping: { v: 'v' },
+            },
+          },
+        },
+      },
+      edges: [],
+    };
+    const warnings = validatePolicies(g, false);
+    expect(warnings.length).toBeGreaterThanOrEqual(1);
+    expect(
+      warnings.some((w) => w.message.includes('Enrich node') && w.message.includes('storeRaw')),
+    ).toBe(true);
+  });
+
+  it('does not warn when enrich node has storeRaw: false', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1',
+      nodes: {
+        e: {
+          id: 'e',
+          type: 'enrich',
+          ports: { in: [], out: [{ name: 'v', required: false }] },
+          policy: { onError: 'fail', onFailPropagation: 'halt' },
+          meta: {
+            enrichConfig: {
+              endpoint: 'https://api.example.com',
+              timeoutMs: 3000,
+              onFailure: 'fail',
+              inputMapping: {},
+              outputMapping: { v: 'v' },
+            },
+          },
+        },
+      },
+      edges: [],
+    };
+    const warnings = validatePolicies(g, false);
+    expect(warnings.filter((w) => w.message.includes('Enrich node'))).toEqual([]);
+  });
 });

@@ -167,4 +167,196 @@ describe('step1-structure', () => {
     };
     expect(() => validateStructure(g)).toThrow(DGCompileError);
   });
+
+  // --- Enrich node validation ---
+
+  function enrichNode(overrides: Partial<DGNode> = {}): DGNode {
+    return {
+      id: 'e',
+      type: 'enrich',
+      ports: { in: [{ name: 'nif', required: true }], out: [{ name: 'regime', required: true }] },
+      policy: { onError: 'fail', onFailPropagation: 'halt' },
+      meta: {
+        enrichConfig: {
+          endpoint: 'https://api.example.com/data',
+          timeoutMs: 3000,
+          onFailure: 'fail',
+          inputMapping: { nif: 'company.nif' },
+          outputMapping: { regime: 'data.regime' },
+        },
+      },
+      ...overrides,
+    };
+  }
+
+  it('accepts a valid enrich node', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: { e: enrichNode() },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).not.toThrow();
+  });
+
+  it('rejects enrich node with model', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: { e: enrichNode({ model: 'FLAT_RATE' }) },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow(DGCompileError);
+    expect(() => validateStructure(g)).toThrow('must not have a model');
+  });
+
+  it('rejects enrich node missing enrichConfig', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: { e: enrichNode({ meta: {} }) },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow(DGCompileError);
+    expect(() => validateStructure(g)).toThrow('missing meta.enrichConfig');
+  });
+
+  it('rejects enrich node with empty endpoint', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: {
+        e: enrichNode({
+          meta: {
+            enrichConfig: {
+              endpoint: '',
+              timeoutMs: 3000,
+              onFailure: 'fail',
+              inputMapping: {},
+              outputMapping: { r: 'r' },
+            },
+          },
+        }),
+      },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow('endpoint must be a non-empty string');
+  });
+
+  it('rejects enrich node with timeoutMs > 5000', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: {
+        e: enrichNode({
+          meta: {
+            enrichConfig: {
+              endpoint: 'https://api.example.com',
+              timeoutMs: 10000,
+              onFailure: 'fail',
+              inputMapping: {},
+              outputMapping: { r: 'r' },
+            },
+          },
+        }),
+      },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow('timeoutMs must be > 0 and <= 5000');
+  });
+
+  it('rejects enrich node with retry > 3', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: {
+        e: enrichNode({
+          meta: {
+            enrichConfig: {
+              endpoint: 'https://api.example.com',
+              timeoutMs: 3000,
+              onFailure: 'fail',
+              retry: 5,
+              inputMapping: {},
+              outputMapping: { r: 'r' },
+            },
+          },
+        }),
+      },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow('retry must be 0–3');
+  });
+
+  it('rejects enrich node with empty outputMapping', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: {
+        e: enrichNode({
+          meta: {
+            enrichConfig: {
+              endpoint: 'https://api.example.com',
+              timeoutMs: 3000,
+              onFailure: 'fail',
+              inputMapping: {},
+              outputMapping: {},
+            },
+          },
+        }),
+      },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow('outputMapping is required');
+  });
+
+  it('rejects enrich onFailure=fallback without policy.fallback', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: {
+        e: enrichNode({
+          meta: {
+            enrichConfig: {
+              endpoint: 'https://api.example.com',
+              timeoutMs: 3000,
+              onFailure: 'fallback',
+              inputMapping: {},
+              outputMapping: { r: 'r' },
+            },
+          },
+          policy: { onError: 'fail', onFailPropagation: 'halt' },
+        }),
+      },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow('policy.onError is not "fallback"');
+  });
+
+  it('accepts enrich onFailure=fallback with matching policy', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: {
+        e: enrichNode({
+          meta: {
+            enrichConfig: {
+              endpoint: 'https://api.example.com',
+              timeoutMs: 3000,
+              onFailure: 'fallback',
+              inputMapping: {},
+              outputMapping: { regime: 'data.regime' },
+            },
+          },
+          policy: {
+            onError: 'fallback',
+            onFailPropagation: 'continue',
+            fallback: { regime: 'default' },
+          },
+        }),
+      },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).not.toThrow();
+  });
 });
