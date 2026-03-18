@@ -29,6 +29,9 @@ export function toGraphviz(graph: DGGraph, result?: DGResult): string {
       case 'enrich':
         attrs.push('shape=parallelogram');
         break;
+      case 'subgraph':
+        attrs.push('shape=component');
+        break;
       default:
         attrs.push('shape=box');
     }
