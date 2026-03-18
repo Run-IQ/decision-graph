@@ -13,7 +13,7 @@ function getActiveParents(
   nodeId: string,
   compiled: CompiledGraph,
   ctx: DGContext,
-): { completed: string[]; active: string[] } {
+): { completed: string[]; active: string[]; unavailable: string[] } {
   const parents: string[] = [];
   for (const edge of compiled.source.edges) {
     if (edge.to.node === nodeId) {
@@ -23,10 +23,11 @@ function getActiveParents(
 
   const completed: string[] = [];
   const active: string[] = [];
+  const unavailable: string[] = [];
 
   for (const parentId of parents) {
     if (ctx.isSkipped(parentId) || ctx.isFailed(parentId)) {
-      // Not active
+      unavailable.push(parentId);
       continue;
     }
     active.push(parentId);
@@ -35,7 +36,7 @@ function getActiveParents(
     }
   }
 
-  return { completed, active };
+  return { completed, active, unavailable };
 }
 
 export async function runMerge(
@@ -50,7 +51,7 @@ export async function runMerge(
     onPartialInputs: 'fail' as const,
   };
 
-  const { completed, active } = getActiveParents(node.id, compiled, ctx);
+  const { completed, active, unavailable } = getActiveParents(node.id, compiled, ctx);
   const quorumMet = checkQuorum(mergeConfig, completed, active, node.id);
 
   if (!quorumMet) {
@@ -70,13 +71,14 @@ export async function runMerge(
     // 'proceed-with-available' — just proceed with what we have
   }
 
-  // Emit waiting event
+  // Emit waiting event — includes unavailable parents for explicit tracking
   ctx.emit({
     type: 'merge.waiting',
     nodeId: node.id,
     strategy: mergeConfig.strategy,
     waiting: active.filter((p) => !completed.includes(p)),
     received: completed,
+    unavailable,
     ts: now(),
   });
 

@@ -67,6 +67,7 @@ export type DGEvent =
       readonly strategy: string;
       readonly waiting: readonly string[];
       readonly received: readonly string[];
+      readonly unavailable: readonly string[];
       readonly ts: string;
     }
   | {
