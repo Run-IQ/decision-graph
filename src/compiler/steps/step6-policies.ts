@@ -12,6 +12,7 @@ export function validatePolicies(graph: DGGraph, strict: boolean): CompileWarnin
   checkStoreRawCount(graph, warnings);
   checkMergeQuorumFullContext(graph, warnings);
   checkEnrichStoreRaw(graph, warnings);
+  checkSubGraphStoreRaw(graph, warnings);
 
   if (strict && warnings.length > 0) {
     const msgs = warnings.map((w) => w.message).join('; ');
@@ -78,6 +79,20 @@ function checkEnrichStoreRaw(graph: DGGraph, warnings: CompileWarning[]): void {
         step: STEP,
         message:
           `Enrich node "${nodeId}" has storeRaw: true. External API responses can be large ` +
+          `— consider disabling storeRaw or setting maxOutputSizeKb.`,
+        nodeId,
+      });
+    }
+  }
+}
+
+function checkSubGraphStoreRaw(graph: DGGraph, warnings: CompileWarning[]): void {
+  for (const [nodeId, node] of Object.entries(graph.nodes)) {
+    if (node.type === 'subgraph' && node.policy.storeRaw === true) {
+      warnings.push({
+        step: STEP,
+        message:
+          `Subgraph node "${nodeId}" has storeRaw: true. Sub-DG results can be large ` +
           `— consider disabling storeRaw or setting maxOutputSizeKb.`,
         nodeId,
       });

@@ -1,6 +1,7 @@
 import type { DGGraph, DGNode } from '../../types/graph.js';
 import type { MergeNodeConfig } from '../../types/policy.js';
 import type { EnrichConfig } from '../../types/enrich.js';
+import type { SubGraphConfig } from '../../types/subgraph.js';
 import { DGCompileError } from '../../errors.js';
 
 const STEP = 1;
@@ -50,6 +51,7 @@ function validateNodes(graph: DGGraph): void {
     validateFallback(nodeId, node);
     validateMergeQuorum(graph, nodeId, node);
     validateEnrichConfig(nodeId, node);
+    validateSubGraphConfig(nodeId, node);
   }
 }
 
@@ -133,6 +135,29 @@ function validateEnrichConfig(nodeId: string, node: DGNode): void {
           `node.policy.onError is not "fallback" or policy.fallback is missing`,
       );
     }
+  }
+}
+
+function validateSubGraphConfig(nodeId: string, node: DGNode): void {
+  if (node.type !== 'subgraph') return;
+
+  if (node.model) {
+    fail(`Subgraph node "${nodeId}" must not have a model — subgraph nodes delegate to a sub-DG`);
+  }
+
+  const cfg = node.meta?.['subGraphConfig'] as SubGraphConfig | undefined;
+  if (!cfg) {
+    fail(`Subgraph node "${nodeId}" is missing meta.subGraphConfig`);
+  }
+
+  if (typeof cfg.graphId !== 'string' || cfg.graphId.trim() === '') {
+    fail(`Subgraph node "${nodeId}": subGraphConfig.graphId must be a non-empty string`);
+  }
+
+  if (!cfg.outputMapping || Object.keys(cfg.outputMapping).length === 0) {
+    fail(
+      `Subgraph node "${nodeId}": subGraphConfig.outputMapping is required and must be non-empty`,
+    );
   }
 }
 
