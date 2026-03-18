@@ -16,12 +16,14 @@ export class DGCompileError extends DGError {
 }
 
 export class DGCycleError extends DGError {
-  constructor(
-    message: string,
-    readonly cycle: readonly string[],
-  ) {
+  readonly cycle: readonly string[];
+  readonly cycles: readonly (readonly string[])[];
+
+  constructor(message: string, cycles: readonly (readonly string[])[]) {
     super(message);
     this.name = 'DGCycleError';
+    this.cycles = cycles;
+    this.cycle = cycles[0] ?? [];
   }
 }
 

@@ -19,7 +19,7 @@ export function detectCycles(graph: DGGraph): void {
     inDegree.set(edge.to.node, (inDegree.get(edge.to.node) ?? 0) + 1);
   }
 
-  // Kahn's BFS
+  // Kahn's BFS — detect if any cycles exist
   const queue: string[] = [];
   for (const [id, deg] of inDegree) {
     if (deg === 0) queue.push(id);
@@ -37,14 +37,23 @@ export function detectCycles(graph: DGGraph): void {
   }
 
   if (visited < nodeIds.length) {
-    // Find one cycle for the error message via DFS
-    const cyclePath = findCyclePath(adjacency, inDegree);
-    throw new DGCycleError(`Cycle detected: ${cyclePath.join(' → ')}`, cyclePath);
+    // Find ALL cycles by extracting cycles from remaining nodes
+    const cycles = findAllCycles(adjacency, inDegree);
+    const descriptions = cycles.map((c) => c.join(' → ')).join('; ');
+    throw new DGCycleError(`${cycles.length} cycle(s) detected: ${descriptions}`, cycles);
   }
 }
 
-function findCyclePath(adjacency: Map<string, string[]>, inDegree: Map<string, number>): string[] {
-  // Start from any node still in the cycle (inDegree > 0)
+/**
+ * Find all distinct cycles among nodes that remain after Kahn's algorithm
+ * (i.e., nodes with inDegree > 0). Uses iterative cycle extraction:
+ * for each unvisited remaining node, trace a path until we hit a visited node,
+ * then extract the cycle.
+ */
+function findAllCycles(
+  adjacency: Map<string, string[]>,
+  inDegree: Map<string, number>,
+): string[][] {
   const remaining = new Set<string>();
   for (const [id, deg] of inDegree) {
     if (deg > 0) remaining.add(id);
@@ -52,7 +61,34 @@ function findCyclePath(adjacency: Map<string, string[]>, inDegree: Map<string, n
 
   if (remaining.size === 0) return [];
 
-  const start = remaining.values().next().value as string;
+  // Build a sub-adjacency restricted to remaining nodes
+  const subAdj = new Map<string, string[]>();
+  for (const id of remaining) {
+    subAdj.set(
+      id,
+      (adjacency.get(id) ?? []).filter((n) => remaining.has(n)),
+    );
+  }
+
+  const cycles: string[][] = [];
+  const globalVisited = new Set<string>();
+
+  for (const startNode of remaining) {
+    if (globalVisited.has(startNode)) continue;
+
+    const cycle = traceCycle(startNode, subAdj, remaining);
+    if (cycle.length > 0) {
+      cycles.push(cycle);
+      for (const nodeId of cycle.slice(0, -1)) {
+        globalVisited.add(nodeId);
+      }
+    }
+  }
+
+  return cycles;
+}
+
+function traceCycle(start: string, adj: Map<string, string[]>, remaining: Set<string>): string[] {
   const visited = new Set<string>();
   const path: string[] = [];
 
@@ -60,15 +96,15 @@ function findCyclePath(adjacency: Map<string, string[]>, inDegree: Map<string, n
   while (current && !visited.has(current)) {
     visited.add(current);
     path.push(current);
-    current = (adjacency.get(current) ?? []).find((n) => remaining.has(n));
+    current = (adj.get(current) ?? []).find((n) => remaining.has(n));
   }
 
   if (current) {
     const cycleStart = path.indexOf(current);
     const cycle = path.slice(cycleStart);
-    cycle.push(current);
+    cycle.push(current); // close the cycle
     return cycle;
   }
 
-  return [start];
+  return [];
 }
