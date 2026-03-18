@@ -93,4 +93,30 @@ describe('CompositeExecutor', () => {
 
     expect(http.execute).toHaveBeenCalledWith(node, inputs, META);
   });
+
+  // --- Subgraph routing ---
+
+  it('routes subgraph nodes to subGraphExecutor', async () => {
+    const core: NodeExecutor = { execute: vi.fn().mockResolvedValue(makeResult('core')) };
+    const http: NodeExecutor = { execute: vi.fn().mockResolvedValue(makeResult('http')) };
+    const sg: NodeExecutor = { execute: vi.fn().mockResolvedValue(makeResult('subgraph')) };
+    const composite = new CompositeExecutor(core, http, sg);
+
+    const result = await composite.execute(makeNode('subgraph'), {}, META);
+
+    expect(sg.execute).toHaveBeenCalledTimes(1);
+    expect(core.execute).not.toHaveBeenCalled();
+    expect(http.execute).not.toHaveBeenCalled();
+    expect(result.outputs['tag']).toBe('subgraph');
+  });
+
+  it('throws when subgraph node but no subGraphExecutor provided', async () => {
+    const core: NodeExecutor = { execute: vi.fn().mockResolvedValue(makeResult('core')) };
+    const http: NodeExecutor = { execute: vi.fn().mockResolvedValue(makeResult('http')) };
+    const composite = new CompositeExecutor(core, http);
+
+    await expect(composite.execute(makeNode('subgraph'), {}, META)).rejects.toThrow(
+      'no SubGraphExecutor was provided',
+    );
+  });
 });

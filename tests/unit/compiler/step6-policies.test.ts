@@ -256,4 +256,54 @@ describe('step6-policies', () => {
     const warnings = validatePolicies(g, false);
     expect(warnings.filter((w) => w.message.includes('Enrich node'))).toEqual([]);
   });
+
+  it('warns when subgraph node has storeRaw: true', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1',
+      nodes: {
+        sg: {
+          id: 'sg',
+          type: 'subgraph',
+          ports: { in: [], out: [{ name: 'v', required: false }] },
+          policy: { onError: 'fail', onFailPropagation: 'halt', storeRaw: true },
+          meta: {
+            subGraphConfig: {
+              graphId: 'DG_X',
+              inputMapping: {},
+              outputMapping: { v: 'v' },
+            },
+          },
+        },
+      },
+      edges: [],
+    };
+    const warnings = validatePolicies(g, false);
+    expect(warnings.some((w) => w.message.includes('Subgraph node'))).toBe(true);
+  });
+
+  it('does not warn when subgraph node has no storeRaw', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1',
+      nodes: {
+        sg: {
+          id: 'sg',
+          type: 'subgraph',
+          ports: { in: [], out: [{ name: 'v', required: false }] },
+          policy: { onError: 'fail', onFailPropagation: 'halt' },
+          meta: {
+            subGraphConfig: {
+              graphId: 'DG_X',
+              inputMapping: {},
+              outputMapping: { v: 'v' },
+            },
+          },
+        },
+      },
+      edges: [],
+    };
+    const warnings = validatePolicies(g, false);
+    expect(warnings.filter((w) => w.message.includes('Subgraph node'))).toEqual([]);
+  });
 });

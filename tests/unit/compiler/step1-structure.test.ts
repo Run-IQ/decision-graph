@@ -359,4 +359,81 @@ describe('step1-structure', () => {
     };
     expect(() => validateStructure(g)).not.toThrow();
   });
+
+  // --- Subgraph node validation ---
+
+  function sgNode(overrides: Partial<DGNode> = {}): DGNode {
+    return {
+      id: 'sg',
+      type: 'subgraph',
+      ports: { in: [{ name: 'data', required: true }], out: [{ name: 'score', required: true }] },
+      policy: { onError: 'fail', onFailPropagation: 'halt' },
+      meta: {
+        subGraphConfig: {
+          graphId: 'DG_FinancialCheck',
+          inputMapping: { nif: 'company.nif' },
+          outputMapping: { score: 'financialScore' },
+        },
+      },
+      ...overrides,
+    };
+  }
+
+  it('accepts a valid subgraph node', () => {
+    const g: DGGraph = { id: 'g', version: '1.0.0', nodes: { sg: sgNode() }, edges: [] };
+    expect(() => validateStructure(g)).not.toThrow();
+  });
+
+  it('rejects subgraph node with model', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: { sg: sgNode({ model: 'FLAT_RATE' }) },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow(DGCompileError);
+    expect(() => validateStructure(g)).toThrow('must not have a model');
+  });
+
+  it('rejects subgraph node missing subGraphConfig', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: { sg: sgNode({ meta: {} }) },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow('missing meta.subGraphConfig');
+  });
+
+  it('rejects subgraph node with empty graphId', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: {
+        sg: sgNode({
+          meta: {
+            subGraphConfig: { graphId: '', inputMapping: {}, outputMapping: { v: 'v' } },
+          },
+        }),
+      },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow('graphId must be a non-empty string');
+  });
+
+  it('rejects subgraph node with empty outputMapping', () => {
+    const g: DGGraph = {
+      id: 'g',
+      version: '1.0.0',
+      nodes: {
+        sg: sgNode({
+          meta: {
+            subGraphConfig: { graphId: 'DG_X', inputMapping: {}, outputMapping: {} },
+          },
+        }),
+      },
+      edges: [],
+    };
+    expect(() => validateStructure(g)).toThrow('outputMapping is required');
+  });
 });
