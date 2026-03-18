@@ -26,6 +26,9 @@ export function toGraphviz(graph: DGGraph, result?: DGResult): string {
       case 'merge':
         attrs.push('shape=ellipse');
         break;
+      case 'enrich':
+        attrs.push('shape=parallelogram');
+        break;
       default:
         attrs.push('shape=box');
     }

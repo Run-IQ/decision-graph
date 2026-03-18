@@ -23,6 +23,9 @@ export function toMermaid(graph: DGGraph, result?: DGResult): string {
       case 'merge':
         shape = `${id}([${label}])`;
         break;
+      case 'enrich':
+        shape = `${id}[/"${label}"/]`;
+        break;
       default:
         shape = `${id}["${label}"]`;
     }
