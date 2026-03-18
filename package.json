@@ -1,6 +1,6 @@
 {
   "name": "@run-iq/dg",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DAG orchestration layer for Run-IQ PPE — models multi-plugin workflows as directed acyclic graphs",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,10 +45,13 @@
     "url": "https://github.com/Run-IQ/decision-graph/issues"
   },
   "author": "Abdou-Raouf ATARMLA",
-  "license": "MIT",
-  "dependencies": {
-    "@run-iq/context-engine": "file:../context-engine",
-    "@run-iq/core": "file:../core"
+  "license": "SEE LICENSE IN LICENSE",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "peerDependencies": {
+    "@run-iq/core": "^0.2.8",
+    "@run-iq/context-engine": "^0.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
