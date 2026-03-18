@@ -14,6 +14,9 @@ export type { NodePorts, PortDescriptor, PortWiring, WiringMap } from './ports.j
 export type { NodePolicy, MergeNodeConfig, ExecutionLimits } from './policy.js';
 export { DEFAULT_LIMITS } from './policy.js';
 
+export type { EnrichConfig } from './enrich.js';
+export { ENRICH_DEFAULTS } from './enrich.js';
+
 export type { DGEvent, SkipReason, DGStatus, LogLevel } from './events.js';
 
 export type { DGResult, DGLevelSnapshot } from './result.js';
