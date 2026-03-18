@@ -17,7 +17,7 @@ export interface DGNode {
   readonly meta?: Record<string, unknown>;
 }
 
-export type DGNodeType = 'compute' | 'branch' | 'guard' | 'merge' | 'enrich';
+export type DGNodeType = 'compute' | 'branch' | 'guard' | 'merge' | 'enrich' | 'subgraph';
 
 export interface DGEdge {
   readonly id: string;
