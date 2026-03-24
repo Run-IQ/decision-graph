@@ -127,6 +127,7 @@ export class HttpNodeExecutor implements NodeExecutor {
         outputs: { ...node.policy.fallback },
         raw: { error: lastError?.message, retries: maxRetries },
         durationMs: Date.now() - start,
+        usedFallback: true,
       };
     }
 

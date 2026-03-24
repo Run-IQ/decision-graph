@@ -85,6 +85,7 @@ export type DGEvent =
 
 export type SkipReason =
   | 'edge-condition-false'
+  | 'node-error-skip'
   | 'parent-failed-propagation'
   | 'guard-rejected'
   | 'merge-partial-inputs-failed'

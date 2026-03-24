@@ -5,6 +5,8 @@ export interface NodeResult {
   readonly outputs: Readonly<Record<string, unknown>>;
   readonly raw?: unknown;
   readonly durationMs: number;
+  /** When true, signals that fallback values were used instead of real outputs. */
+  readonly usedFallback?: boolean;
 }
 
 export interface NodeExecutor {

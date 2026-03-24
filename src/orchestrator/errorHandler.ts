@@ -32,7 +32,7 @@ export function handleNodeError(
     ctx.emit({
       type: 'node.skipped',
       nodeId: node.id,
-      reason: 'edge-condition-false',
+      reason: 'node-error-skip',
       ts: now(),
     });
     // Propagation handled below

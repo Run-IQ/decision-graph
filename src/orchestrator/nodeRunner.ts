@@ -106,6 +106,16 @@ export async function runNode(
 
   ctx.markCompleted(node.id);
 
+  // Emit fallback event if the executor signals it used fallback values
+  if (result.usedFallback === true) {
+    ctx.emit({
+      type: 'node.fallback',
+      nodeId: node.id,
+      fallback: result.outputs,
+      ts: now(),
+    });
+  }
+
   ctx.emit({
     type: 'node.completed',
     nodeId: node.id,
