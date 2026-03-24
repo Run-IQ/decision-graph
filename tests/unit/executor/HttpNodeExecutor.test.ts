@@ -213,6 +213,7 @@ describe('HttpNodeExecutor', () => {
 
     expect(result.outputs['regime']).toBe('default');
     expect((result.raw as Record<string, unknown>)['error']).toBeDefined();
+    expect(result.usedFallback).toBe(true);
   });
 
   // --- Response size limit ---

@@ -64,6 +64,9 @@ describe('errorHandler', () => {
 
     handleNodeError(graph.nodes['a']!, new Error('boom'), compiled, ctx);
     expect(ctx.isSkipped('a')).toBe(true);
+    const skipEvent = ctx.getEvents().find((e) => e.type === 'node.skipped' && e.nodeId === 'a');
+    expect(skipEvent).toBeDefined();
+    expect((skipEvent as { reason: string }).reason).toBe('node-error-skip');
   });
 
   it('fail + halt: throws DGHaltError', () => {
