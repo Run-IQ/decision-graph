@@ -1,6 +1,6 @@
 {
   "name": "@run-iq/dg",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "DAG orchestration layer for Run-IQ PPE — models multi-plugin workflows as directed acyclic graphs",
   "type": "module",
   "main": "./dist/index.cjs",
