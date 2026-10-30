@@ -1,14 +1,17 @@
-import pkg from '../package.json' with { type: 'json' };
+// Named imports: the bundler inlines only these fields, not the whole package.json.
+import { version, peerDependencies } from '../package.json';
+import { VERSION as CORE_VERSION } from '@run-iq/core';
+import { VERSION as CONTEXT_ENGINE_VERSION } from '@run-iq/context-engine';
 
 /** This package's version, read from package.json at build time. */
-export const VERSION: string = pkg.version;
+export const VERSION: string = version;
 
-/** Lowest version of a peer that this package supports: `^1.0.0-next.0` gives `1.0.0-next.0`. */
-function peerFloor(range: string): string {
-  return range.replace(/^[\^~]/, '');
+/** The peer version ranges this package supports, from its package.json. */
+export const SUPPORTED_PEERS: Readonly<Record<string, string>> = Object.freeze({
+  ...peerDependencies,
+});
+
+/** The dg, core and context-engine versions loaded in this process. */
+export function loadedVersions(): { dg: string; core: string; contextEngine: string } {
+  return { dg: VERSION, core: CORE_VERSION, contextEngine: CONTEXT_ENGINE_VERSION };
 }
-
-export const CORE_VERSION: string = peerFloor(pkg.peerDependencies['@run-iq/core']);
-export const CONTEXT_ENGINE_VERSION: string = peerFloor(
-  pkg.peerDependencies['@run-iq/context-engine'],
-);

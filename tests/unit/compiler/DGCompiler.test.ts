@@ -3,6 +3,8 @@ import { DGCompiler } from '../../../src/compiler/DGCompiler.js';
 import { DGCompileError, DGCycleError, DGLimitError } from '../../../src/errors.js';
 import type { DGGraph, DGNode } from '../../../src/types/graph.js';
 import pkg from '../../../package.json' with { type: 'json' };
+import { VERSION as CORE_VERSION } from '@run-iq/core';
+import { VERSION as CONTEXT_ENGINE_VERSION } from '@run-iq/context-engine';
 
 function node(id: string, inPorts: string[] = [], outPorts: string[] = ['value']): DGNode {
   return {
@@ -49,15 +51,11 @@ describe('DGCompiler', () => {
     expect(c1.hash).toBe(c2.hash);
   });
 
-  it('populates compiled metadata', () => {
+  it('records the compile environment: the versions loaded at compile time', () => {
     const compiled = compiler.compile(validGraph());
     expect(compiled.compiled.dgVersion).toBe(pkg.version);
-    expect(compiled.compiled.contextEngineVersion).toBe(
-      pkg.peerDependencies['@run-iq/context-engine'].replace(/^\^/, ''),
-    );
-    expect(compiled.compiled.coreVersion).toBe(
-      pkg.peerDependencies['@run-iq/core'].replace(/^\^/, ''),
-    );
+    expect(compiled.compiled.contextEngineVersion).toBe(CONTEXT_ENGINE_VERSION);
+    expect(compiled.compiled.coreVersion).toBe(CORE_VERSION);
     expect(compiled.compiled.at).toBeTruthy();
   });
 

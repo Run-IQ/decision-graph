@@ -86,7 +86,7 @@ result.executed; // ['shipping', 'insurance']
 - **Edges** connect an output port to an input port. An edge can have a `condition` evaluated by a DSL (looked up by name in the map passed to `DGOrchestrator`). A node whose incoming edges are all inactive is skipped.
 - **Compiler**: `DGCompiler.compile(graph)` checks identifiers, structure, wiring, cycles and policies, sorts nodes into levels and computes a hash of the graph. It throws `DGCompileError` or `DGCycleError` on invalid graphs.
 - **Policy**: each node sets `onError` (`'fail'`, `'skip'`, `'fallback'` with `fallback` values) and `onFailPropagation` (`'halt'`, `'skip-descendants'`, `'continue'`). Optional `storeRaw` (keep the raw engine result) and `maxOutputSizeKb` (default 512).
-- **Result**: `status` is `'completed'`, `'partial'` or `'failed'`. `events` lists everything that happened, node by node. `versions` gives this package's version and the lowest `core` and `context-engine` versions it supports.
+- **Result**: `status` is `'completed'`, `'partial'` or `'failed'`. `events` lists everything that happened, node by node. `versions` gives the dg, `core` and `context-engine` versions that ran the execution; `compiled.compiled` keeps those loaded at compile time. `SUPPORTED_PEERS` lists the peer ranges.
 
 ## Node types
 

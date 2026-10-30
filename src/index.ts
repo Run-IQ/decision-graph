@@ -107,4 +107,4 @@ export type {
 } from './pipeline/OutputLayer.js';
 
 // Version
-export { VERSION } from './version.js';
+export { VERSION, SUPPORTED_PEERS } from './version.js';

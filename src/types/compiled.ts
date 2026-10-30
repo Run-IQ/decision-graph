@@ -12,6 +12,7 @@ export interface CompiledGraph {
   readonly dslVars: DSLVariableMap;
   readonly warnings: readonly CompileWarning[];
   readonly hash: string;
+  /** The compile environment: when the graph was compiled and the versions loaded then. */
   readonly compiled: {
     readonly at: string;
     readonly dgVersion: string;

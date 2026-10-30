@@ -6,6 +6,8 @@ import type { CompiledGraph } from '../../../src/types/compiled.js';
 import { EventEmitter } from 'node:events';
 import type { ExecutionMeta } from '@run-iq/context-engine';
 import pkg from '../../../package.json' with { type: 'json' };
+import { VERSION as CORE_VERSION } from '@run-iq/core';
+import { VERSION as CONTEXT_ENGINE_VERSION } from '@run-iq/context-engine';
 
 const META: ExecutionMeta = {
   requestId: 'req-1',
@@ -280,6 +282,17 @@ describe('DGContext', () => {
       expect(result.durationMs).toBe(100);
       expect(result.graphId).toBe('g');
       expect(result.versions.dg).toBe(pkg.version);
+    });
+
+    it('reports the core and context-engine versions that ran, not the compiled ones', () => {
+      const ctx = new DGContext({}, META);
+      const compiled = makeCompiled();
+      expect(compiled.compiled.coreVersion).not.toBe(CORE_VERSION);
+
+      const result = ctx.buildResult(compiled);
+
+      expect(result.versions.core).toBe(CORE_VERSION);
+      expect(result.versions.contextEngine).toBe(CONTEXT_ENGINE_VERSION);
     });
 
     it('defaults to failed status when no graph.completed event', () => {

@@ -11,6 +11,7 @@ export interface DGResult {
   readonly failed: readonly string[];
   readonly events: readonly DGEvent[];
   readonly durationMs: number;
+  /** The dg, context-engine and core versions that ran this execution. */
   readonly versions: {
     readonly dg: string;
     readonly contextEngine: string;

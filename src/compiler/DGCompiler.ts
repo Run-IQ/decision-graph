@@ -10,7 +10,7 @@ import { buildFailurePropagationMap } from './steps/step5-failures.js';
 import { validatePolicies } from './steps/step6-policies.js';
 import { computeGraphHash } from './steps/step7-hash.js';
 import { analyzeDSLVariables } from './steps/step8-dsl-vars.js';
-import { CONTEXT_ENGINE_VERSION, CORE_VERSION, VERSION } from '../version.js';
+import { loadedVersions } from '../version.js';
 import { now } from '../utils.js';
 
 export class DGCompiler {
@@ -54,6 +54,9 @@ export class DGCompiler {
       );
     }
 
+    // The compile environment: the versions loaded when the graph was compiled.
+    const env = loadedVersions();
+
     return {
       source: graph,
       levels,
@@ -64,9 +67,9 @@ export class DGCompiler {
       hash,
       compiled: {
         at: now(),
-        dgVersion: VERSION,
-        contextEngineVersion: CONTEXT_ENGINE_VERSION,
-        coreVersion: CORE_VERSION,
+        dgVersion: env.dg,
+        contextEngineVersion: env.contextEngine,
+        coreVersion: env.core,
       },
     };
   }

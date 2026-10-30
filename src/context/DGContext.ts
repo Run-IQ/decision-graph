@@ -9,7 +9,7 @@ import type { DGResult, DGLevelSnapshot } from '../types/result.js';
 import type { CompiledGraph } from '../types/compiled.js';
 import { DGLimitError } from '../errors.js';
 import { shouldLog } from './logLevels.js';
-import { VERSION } from '../version.js';
+import { loadedVersions } from '../version.js';
 import { EventEmitter } from 'node:events';
 
 export interface DGContextOptions extends EvaluationContextOptions {
@@ -142,11 +142,8 @@ export class DGContext extends EvaluationContext {
       failed: [...this.failedNodes],
       events: Object.freeze([...this.eventLog]),
       durationMs: graphCompleted?.durationMs ?? 0,
-      versions: {
-        dg: VERSION,
-        contextEngine: compiled.compiled.contextEngineVersion,
-        core: compiled.compiled.coreVersion,
-      },
+      // The versions that ran this execution, not those recorded at compile time.
+      versions: loadedVersions(),
     };
   }
 }
