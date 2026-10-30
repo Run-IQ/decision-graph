@@ -1,6 +1,6 @@
 {
   "name": "@run-iq/dg",
-  "version": "0.1.2",
+  "version": "1.0.0-next.0",
   "description": "DAG orchestration layer for Run-IQ PPE — models multi-plugin workflows as directed acyclic graphs",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -49,9 +49,12 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
+  "dependencies": {
+    "@run-iq/spec": "^1.0.0-next.0"
+  },
   "peerDependencies": {
-    "@run-iq/core": "^0.2.8",
-    "@run-iq/context-engine": "^0.2.1"
+    "@run-iq/core": "^1.0.0-next.0",
+    "@run-iq/context-engine": "^1.0.0-next.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
