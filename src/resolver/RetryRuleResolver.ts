@@ -2,6 +2,7 @@ import type { ExecutionMeta } from '@run-iq/context-engine';
 import type { Rule } from '@run-iq/core';
 import type { DGNode } from '../types/graph.js';
 import type { RuleResolver } from './RuleResolver.js';
+import { SpecError } from '@run-iq/spec';
 import { sleep } from '../utils.js';
 
 export interface RetryRuleResolverOptions {
@@ -26,6 +27,8 @@ export class RetryRuleResolver implements RuleResolver {
       try {
         return await this.inner.resolve(node, meta);
       } catch (err) {
+        // An invalid stored rule fails the same way on every attempt.
+        if (err instanceof SpecError) throw err;
         lastError = err;
         if (attempt < this.maxAttempts - 1) {
           await sleep(this.baseDelayMs * Math.pow(2, attempt));

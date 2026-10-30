@@ -8,6 +8,7 @@ import type { DGNode } from '../../../src/types/graph.js';
 import type { RuleResolver } from '../../../src/resolver/RuleResolver.js';
 import type { Rule } from '@run-iq/core';
 import type { ExecutionMeta } from '@run-iq/context-engine';
+import { SpecError } from '@run-iq/spec';
 
 const META: ExecutionMeta = {
   requestId: 'req-1',
@@ -127,6 +128,25 @@ describe('RetryRuleResolver', () => {
     const retry = new RetryRuleResolver(inner, { maxAttempts: 2, baseDelayMs: 1 });
     await expect(retry.resolve(node('n'), META)).rejects.toThrow('permanent');
     expect(inner.resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry an invalid stored rule (SpecError)', async () => {
+    const invalid = new SpecError('INVALID_RULE', 'Stored rule r1@1: checksum mismatch');
+    const inner = mockResolver();
+    (inner.resolve as ReturnType<typeof vi.fn>).mockRejectedValue(invalid);
+
+    const retry = new RetryRuleResolver(inner, { maxAttempts: 3, baseDelayMs: 1 });
+    await expect(retry.resolve(node('n'), META)).rejects.toBe(invalid);
+    expect(inner.resolve).toHaveBeenCalledTimes(1);
+  });
+
+  it('still retries ordinary errors', async () => {
+    const inner = mockResolver();
+    (inner.resolve as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network'));
+
+    const retry = new RetryRuleResolver(inner, { maxAttempts: 3, baseDelayMs: 1 });
+    await expect(retry.resolve(node('n'), META)).rejects.toThrow('network');
+    expect(inner.resolve).toHaveBeenCalledTimes(3);
   });
 
   it('delegates fingerprint', () => {
