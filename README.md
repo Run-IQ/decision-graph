@@ -7,10 +7,10 @@ A node usually evaluates rules with [`@run-iq/core`](https://github.com/Run-IQ/c
 ## Install
 
 ```bash
-npm install @run-iq/dg @run-iq/core @run-iq/context-engine
+npm install @run-iq/dg@next @run-iq/core@next @run-iq/context-engine@next
 ```
 
-`@run-iq/core` and `@run-iq/context-engine` are peer dependencies. Requires Node.js 20 or later.
+`@run-iq/core` and `@run-iq/context-engine` are peer dependencies. The 1.0 line, built on the rule contract of [`@run-iq/spec`](https://github.com/Run-IQ/spec), is published under the `next` tag. Requires Node.js 20 or later.
 
 ## Example
 
@@ -86,7 +86,7 @@ result.executed; // ['shipping', 'insurance']
 - **Edges** connect an output port to an input port. An edge can have a `condition` evaluated by a DSL (looked up by name in the map passed to `DGOrchestrator`). A node whose incoming edges are all inactive is skipped.
 - **Compiler**: `DGCompiler.compile(graph)` checks identifiers, structure, wiring, cycles and policies, sorts nodes into levels and computes a hash of the graph. It throws `DGCompileError` or `DGCycleError` on invalid graphs.
 - **Policy**: each node sets `onError` (`'fail'`, `'skip'`, `'fallback'` with `fallback` values) and `onFailPropagation` (`'halt'`, `'skip-descendants'`, `'continue'`). Optional `storeRaw` (keep the raw engine result) and `maxOutputSizeKb` (default 512).
-- **Result**: `status` is `'completed'`, `'partial'` or `'failed'`. `events` lists everything that happened, node by node.
+- **Result**: `status` is `'completed'`, `'partial'` or `'failed'`. `events` lists everything that happened, node by node. `versions` gives this package's version and the lowest `core` and `context-engine` versions it supports.
 
 ## Node types
 
@@ -105,8 +105,10 @@ To mix node types, pass a `CompositeExecutor(coreExecutor, httpExecutor, subGrap
 `CoreNodeExecutor` asks a resolver for the rules of each node.
 
 - `StaticRuleResolver`: a fixed `Map<nodeId, Rule[]>`.
-- `RuleStoreResolver`: queries a `RuleStore` by tenant, node `model` and effective date. The stored `payload` must be JSON of the form `{ params, condition? }`.
-- `CachedRuleResolver`, `RetryRuleResolver`, `TimeoutRuleResolver`, `CompositeRuleResolver` wrap other resolvers.
+- `RuleStoreResolver`: queries a `RuleStore` by tenant, node `model` and effective date, and rebuilds each record with `fromStoredRecord` of `@run-iq/spec`. Records must hold spec rule definitions, as the `saveRule` of `@run-iq/context-engine` writes them. `dimensions`, `dominanceGroup` and extension fields reach core.
+- `CachedRuleResolver`, `RetryRuleResolver`, `TimeoutRuleResolver`, `CompositeRuleResolver` wrap other resolvers. `RetryRuleResolver` does not retry an invalid stored record.
+
+A stored record that is not canonical or does not match its checksum is never dropped. The node fails with an error naming the rule, such as `Stored rule shipping-fee@1: checksum mismatch: ...`, and follows its `onError` policy. Under `'skip'` and `'fallback'`, the `node.skipped` or `node.fallback` event carries that message in `error`.
 
 ## Orchestrator options
 
