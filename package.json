@@ -45,7 +45,7 @@
     "url": "https://github.com/Run-IQ/decision-graph/issues"
   },
   "author": "Abdou-Raouf ATARMLA",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "BUSL-1.1",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
