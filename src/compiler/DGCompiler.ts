@@ -10,11 +10,8 @@ import { buildFailurePropagationMap } from './steps/step5-failures.js';
 import { validatePolicies } from './steps/step6-policies.js';
 import { computeGraphHash } from './steps/step7-hash.js';
 import { analyzeDSLVariables } from './steps/step8-dsl-vars.js';
-import { VERSION } from '../version.js';
+import { CONTEXT_ENGINE_VERSION, CORE_VERSION, VERSION } from '../version.js';
 import { now } from '../utils.js';
-
-const CONTEXT_ENGINE_VERSION = '0.2.0';
-const CORE_VERSION = '0.2.6';
 
 export class DGCompiler {
   compile(graph: DGGraph, options?: CompilerOptions): CompiledGraph {

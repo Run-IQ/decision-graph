@@ -5,6 +5,7 @@ import type { DGEvent } from '../../../src/types/events.js';
 import type { CompiledGraph } from '../../../src/types/compiled.js';
 import { EventEmitter } from 'node:events';
 import type { ExecutionMeta } from '@run-iq/context-engine';
+import pkg from '../../../package.json' with { type: 'json' };
 
 const META: ExecutionMeta = {
   requestId: 'req-1',
@@ -278,7 +279,7 @@ describe('DGContext', () => {
       expect(result.status).toBe('completed');
       expect(result.durationMs).toBe(100);
       expect(result.graphId).toBe('g');
-      expect(result.versions.dg).toBe('0.1.0');
+      expect(result.versions.dg).toBe(pkg.version);
     });
 
     it('defaults to failed status when no graph.completed event', () => {

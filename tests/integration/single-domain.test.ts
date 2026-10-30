@@ -6,6 +6,7 @@ import { linearGraph, diamondGraph, computeNode } from '../helpers/graph-builder
 import { mockExecutor, dynamicExecutor, transformExecutor } from '../helpers/mock-executor.js';
 import type { ExecutionMeta } from '@run-iq/context-engine';
 import type { DGGraph } from '../../src/types/graph.js';
+import pkg from '../../package.json' with { type: 'json' };
 
 const META: ExecutionMeta = {
   requestId: 'req-integ-1',
@@ -135,7 +136,7 @@ describe('single-domain integration', () => {
 
     const result = await orch.execute(compiled, {}, META);
 
-    expect(result.versions.dg).toBe('0.1.0');
+    expect(result.versions.dg).toBe(pkg.version);
     expect(result.graphHash).toBe(compiled.hash);
   });
 });

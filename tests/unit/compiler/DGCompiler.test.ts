@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { DGCompiler } from '../../../src/compiler/DGCompiler.js';
 import { DGCompileError, DGCycleError, DGLimitError } from '../../../src/errors.js';
 import type { DGGraph, DGNode } from '../../../src/types/graph.js';
+import pkg from '../../../package.json' with { type: 'json' };
 
 function node(id: string, inPorts: string[] = [], outPorts: string[] = ['value']): DGNode {
   return {
@@ -50,9 +51,13 @@ describe('DGCompiler', () => {
 
   it('populates compiled metadata', () => {
     const compiled = compiler.compile(validGraph());
-    expect(compiled.compiled.dgVersion).toBe('0.1.0');
-    expect(compiled.compiled.contextEngineVersion).toBe('0.2.0');
-    expect(compiled.compiled.coreVersion).toBe('0.2.6');
+    expect(compiled.compiled.dgVersion).toBe(pkg.version);
+    expect(compiled.compiled.contextEngineVersion).toBe(
+      pkg.peerDependencies['@run-iq/context-engine'].replace(/^\^/, ''),
+    );
+    expect(compiled.compiled.coreVersion).toBe(
+      pkg.peerDependencies['@run-iq/core'].replace(/^\^/, ''),
+    );
     expect(compiled.compiled.at).toBeTruthy();
   });
 
