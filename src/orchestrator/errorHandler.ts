@@ -22,6 +22,7 @@ export function handleNodeError(
       type: 'node.fallback',
       nodeId: node.id,
       fallback: node.policy.fallback,
+      error: err.message,
       ts: now(),
     });
     return;
@@ -33,6 +34,7 @@ export function handleNodeError(
       type: 'node.skipped',
       nodeId: node.id,
       reason: 'node-error-skip',
+      error: err.message,
       ts: now(),
     });
     // Propagation handled below

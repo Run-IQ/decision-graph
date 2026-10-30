@@ -38,6 +38,8 @@ export type DGEvent =
       readonly type: 'node.skipped';
       readonly nodeId: string;
       readonly reason: SkipReason;
+      /** Message of the node error, set when `reason` is `node-error-skip`. */
+      readonly error?: string;
       readonly ts: string;
     }
   | {
@@ -52,6 +54,8 @@ export type DGEvent =
       readonly type: 'node.fallback';
       readonly nodeId: string;
       readonly fallback: Readonly<Record<string, unknown>>;
+      /** Message of the node error, set when the node's `onError: 'fallback'` policy applied. */
+      readonly error?: string;
       readonly ts: string;
     }
   | {

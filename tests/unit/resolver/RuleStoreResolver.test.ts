@@ -9,6 +9,7 @@ import { CoreNodeExecutor } from '../../../src/executor/CoreNodeExecutor.js';
 import { DGCompiler } from '../../../src/compiler/DGCompiler.js';
 import { DGOrchestrator } from '../../../src/orchestrator/DGOrchestrator.js';
 import type { DGGraph, DGNode } from '../../../src/types/graph.js';
+import type { DGResult } from '../../../src/types/result.js';
 
 const META: ExecutionMeta = {
   requestId: 'req-1',
@@ -120,6 +121,23 @@ const SHIPPING_NODE: DGNode = {
     out: [{ name: 'value', required: true }],
   },
 };
+
+async function runTampered(policy: DGNode['policy']): Promise<DGResult> {
+  const store = await publishedShippingFee();
+  tamperPayloads(store);
+  const engine = new PPEEngine({ plugins: [percentagePlugin()], dsls: [] });
+  const orchestrator = new DGOrchestrator(
+    new CoreNodeExecutor(engine, new RuleStoreResolver(store)),
+    new Map(),
+  );
+  const graph: DGGraph = {
+    id: 'order-fees',
+    version: '1.0.0',
+    nodes: { shipping: { ...SHIPPING_NODE, policy } },
+    edges: [],
+  };
+  return orchestrator.execute(new DGCompiler().compile(graph), { orderTotal: 200 }, SHIPPING_META);
+}
 
 describe('RuleStoreResolver', () => {
   it('resolves rules from store', async () => {
@@ -248,30 +266,33 @@ describe('RuleStoreResolver', () => {
   });
 
   it('fails the node when a stored record is tampered', async () => {
-    const store = await publishedShippingFee();
-    tamperPayloads(store);
-    const engine = new PPEEngine({ plugins: [percentagePlugin()], dsls: [] });
-    const orchestrator = new DGOrchestrator(
-      new CoreNodeExecutor(engine, new RuleStoreResolver(store)),
-      new Map(),
-    );
-    const graph: DGGraph = {
-      id: 'order-fees',
-      version: '1.0.0',
-      nodes: { shipping: SHIPPING_NODE },
-      edges: [],
-    };
-
-    const result = await orchestrator.execute(
-      new DGCompiler().compile(graph),
-      { orderTotal: 200 },
-      SHIPPING_META,
-    );
+    const result = await runTampered(SHIPPING_NODE.policy);
 
     expect(result.status).toBe('failed');
     expect(result.failed).toEqual(['shipping']);
     const failure = result.events.find((e) => e.type === 'node.failed');
     expect(failure).toMatchObject({ nodeId: 'shipping' });
     expect(failure && 'error' in failure ? failure.error : '').toContain('shipping-fee@1');
+  });
+  it('carries the error in the skipped event under onError skip', async () => {
+    const result = await runTampered({ onError: 'skip', onFailPropagation: 'halt' });
+
+    expect(result.skipped).toEqual(['shipping']);
+    const skipped = result.events.find((e) => e.type === 'node.skipped');
+    expect(skipped).toMatchObject({ nodeId: 'shipping', reason: 'node-error-skip' });
+    expect(skipped && 'error' in skipped ? skipped.error : '').toContain('shipping-fee@1');
+  });
+
+  it('carries the error in the fallback event under onError fallback', async () => {
+    const result = await runTampered({
+      onError: 'fallback',
+      onFailPropagation: 'halt',
+      fallback: { value: 0 },
+    });
+
+    expect(result.outputs['shipping.value']).toBe(0);
+    const fallback = result.events.find((e) => e.type === 'node.fallback');
+    expect(fallback).toMatchObject({ nodeId: 'shipping', fallback: { value: 0 } });
+    expect(fallback && 'error' in fallback ? fallback.error : '').toContain('shipping-fee@1');
   });
 });
