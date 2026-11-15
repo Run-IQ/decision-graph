@@ -37,6 +37,7 @@ jobs:
         if: startsWith(github.base_ref || github.ref_name, 'refonte/')
         env:
           BRANCH: ${{ github.base_ref || github.ref_name }}
+          LINK_OVERRIDES: '1'
         run: bash .github/scripts/link-refonte.sh "$BRANCH" spec core
       - name: Install from the published packages
         if: ${{ !startsWith(github.base_ref || github.ref_name, 'refonte/') }}

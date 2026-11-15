@@ -59,7 +59,31 @@ for name in "$@"; do
   built+=("$name")
 done
 
-# The repository itself: published copies out of the install, the built ones linked.
-drop "${built[@]}"
-npm ci
-link "${built[@]}"
+# The repository itself.
+if [ "${LINK_OVERRIDES:-}" = 1 ]; then
+  # A published dependency of this repository (here @run-iq/context-engine, which has no
+  # refonte branch) asks for the siblings itself, with ranges the registry cannot answer: the
+  # built siblings replace them everywhere in the install (npm overrides, the runner's copy of
+  # package.json only), and the lock file, which could not hold them, is rebuilt.
+  node -e '
+    const fs = require("fs");
+    const root = process.argv[1];
+    const names = process.argv.slice(2);
+    const fields = ["dependencies", "peerDependencies", "devDependencies", "optionalDependencies"];
+    const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+    pkg.overrides = pkg.overrides || {};
+    for (const n of names) {
+      const spec = "file:" + root + "/" + n;
+      pkg.overrides["@run-iq/" + n] = spec;
+      for (const f of fields) if (pkg[f] && pkg[f]["@run-iq/" + n] !== undefined) pkg[f]["@run-iq/" + n] = spec;
+    }
+    fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+  ' -- "$root" "${built[@]}"
+  rm -f package-lock.json
+  npm install --no-audit --no-fund
+else
+  # Published copies out of the install, the built ones linked.
+  drop "${built[@]}"
+  npm ci
+  link "${built[@]}"
+fi
