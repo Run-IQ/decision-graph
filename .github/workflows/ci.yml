@@ -33,6 +33,16 @@ jobs:
       # published ones (the registry has no version matching these ranges). They are built in the
       # runner, left out of this repository's install (the runner's copy of package.json and
       # package-lock.json only) and linked in place. A missing branch fails the run.
+      # @run-iq/context-engine has no refonte/phase-2 branch yet, so it stays the published package and
+      # its own dependencies on spec and core are replaced by npm overrides (link-refonte.sh,
+      # LINK_OVERRIDES). The day it gets that branch it must be linked like the other siblings: this
+      # step fails then, so the switch cannot be forgotten.
+      - name: Check that context-engine still has no refonte/phase-2 branch
+        run: |
+          if git ls-remote --exit-code https://github.com/Run-IQ/context-engine.git refs/heads/refonte/phase-2 > /dev/null; then
+            echo "::error::Run-IQ/context-engine now has a refonte/phase-2 branch: link it in .github/workflows/ci.yml like spec and core (siblings list), and drop LINK_OVERRIDES."
+            exit 1
+          fi
       - name: Install against the sibling branches
         if: startsWith(github.base_ref || github.ref_name, 'refonte/')
         env:
@@ -51,14 +61,12 @@ jobs:
       - name: Prettier on CLAUDE.md and this workflow
         id: prettier
         run: npm exec --no -- prettier --check CLAUDE.md .github/workflows/ci.yml
-      - name: Test (baseline failure, Task 14)
+      - name: Test (exact baseline, Task 14)
         id: test
-        # Baseline failure, listed in the pull request that added this workflow; Task 14 makes it green.
-        continue-on-error: true
-        run: npm test
-      - name: Say that the test failed
-        if: steps.test.outcome == 'failure'
-        run: echo "::warning::Test fails at the baseline (Task 14 makes it green); see the pull request that added this workflow."
+        # Fails at the baseline: the exact failures are committed in .github/baseline/test.txt and the step is
+        # green only when they are exactly these. A new failure, or a fixed one not removed from the file, fails it.
+        # Task 14 makes it fully green and deletes the file.
+        run: bash .github/scripts/baseline-check.sh test test
       - name: Build
         id: build
         run: npm run build

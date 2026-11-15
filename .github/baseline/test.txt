@@ -1,0 +1,2 @@
+tests/unit/resolver/RuleStoreResolver.test.ts > RuleStoreResolver > converts the stored record to an executable rule
+tests/unit/resolver/RuleStoreResolver.test.ts > RuleStoreResolver > handles effectiveUntil
