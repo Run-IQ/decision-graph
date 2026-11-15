@@ -206,4 +206,5 @@ rereads its repository's `CLAUDE.md` and its PR first.
 Every owner decision posted by the machine session on #1 starts with
 `Machine session: DECISION`. Read it and add it to this Owner decisions section
 in the next PR of each affected repository. The audit checks that it is present.
+
 - `@run-iq/context-engine` has no `refonte/phase-2` branch (ruling of the machine session, job 6): it stays the published package, and its own dependencies on `@run-iq/spec` and `@run-iq/core` are replaced by npm overrides in the CI runner only (`.github/scripts/link-refonte.sh`, `LINK_OVERRIDES`). The CI fails the day `Run-IQ/context-engine` gains that branch: it must then be linked like the other siblings.
