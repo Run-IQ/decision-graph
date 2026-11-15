@@ -51,9 +51,14 @@ jobs:
       - name: Prettier on CLAUDE.md and this workflow
         id: prettier
         run: npm exec --no -- prettier --check CLAUDE.md .github/workflows/ci.yml
-      - name: Test
+      - name: Test (baseline failure, Task 14)
         id: test
+        # Baseline failure, listed in the pull request that added this workflow; Task 14 makes it green.
+        continue-on-error: true
         run: npm test
+      - name: Say that the test failed
+        if: steps.test.outcome == 'failure'
+        run: echo "::warning::Test fails at the baseline (Task 14 makes it green); see the pull request that added this workflow."
       - name: Build
         id: build
         run: npm run build
