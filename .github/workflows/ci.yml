@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, 'refonte/**']
   pull_request:
   workflow_dispatch:
 
@@ -13,6 +13,10 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
     env:
       # Reads the private @run-iq packages (org secret: classic PAT, read:packages).
       NODE_AUTH_TOKEN: ${{ secrets.RUN_IQ_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
@@ -20,12 +24,35 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node }}
           registry-url: https://npm.pkg.github.com
           scope: '@run-iq'
           cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+      # A pull request into refonte/<name>, or a push to it, is checked against the branch of the
+      # same name of the sibling Run-IQ packages (spec core), not against the
+      # published ones (the registry has no version matching these ranges). They are built in the
+      # runner, left out of this repository's install (the runner's copy of package.json and
+      # package-lock.json only) and linked in place. A missing branch fails the run.
+      - name: Install against the sibling branches
+        if: startsWith(github.base_ref || github.ref_name, 'refonte/')
+        env:
+          BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: bash .github/scripts/link-refonte.sh "$BRANCH" spec core
+      - name: Install from the published packages
+        if: ${{ !startsWith(github.base_ref || github.ref_name, 'refonte/') }}
+        run: npm ci
+      - name: Typecheck
+        id: typecheck
+        run: npm run typecheck
+      - name: Lint
+        id: lint
+        run: npm run lint
+      - name: Prettier on CLAUDE.md and this workflow
+        id: prettier
+        run: npm exec --no -- prettier --check CLAUDE.md .github/workflows/ci.yml
+      - name: Test
+        id: test
+        run: npm test
+      - name: Build
+        id: build
+        run: npm run build
